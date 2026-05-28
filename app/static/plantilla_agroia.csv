@@ -1,0 +1,2 @@
+productor;departamento;cultivo;provincia;distrito;latitud;longitud;altitud_msnm;etapa;fecha_siembra;area_hectareas;temperatura_minima;humedad_suelo;lluvia_acumulada;historial_perdidas;riesgo_real;responsable_validacion;fecha_validacion;observacion_validacion;observaciones
+Cooperativa ejemplo;Apurímac;Papa nativa;Andahuaylas;Talavera;-13.653300;-73.430300;2820;Floración;2026-03-14;2.5;3.1;Baja;8.5;1;;;;Parcela con antecedente de heladas

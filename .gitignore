@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+app/datos/agroia.db
+app/static/uploads/*
+!app/static/uploads/.gitkeep

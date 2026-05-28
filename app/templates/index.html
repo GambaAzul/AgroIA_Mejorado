@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroIA Perú | Mapa de alertas productivas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="/static/css/estilos.css">
+</head>
+<body>
+    <div class="fondo-animado"></div>
+    <aside class="barra-lateral">
+        <div class="marca">
+            <img src="/static/img/logo-colegio-ingenieros.png" alt="Colegio de Ingenieros del Perú">
+            <div>
+                <strong>AgroIA Perú</strong>
+                <span>SOFTWARE IA</span>
+            </div>
+        </div>
+        <nav>
+            <a href="#panel" class="activo">Panel</a>
+            <a href="#evaluacion">Nueva evaluación</a>
+            <a href="#importacion">Importar datos</a>
+            <a href="#historial">Historial</a>
+            <a href="#metodologia">Metodología</a>
+            <a href="#blindaje">Blindaje</a>
+        </nav>
+        <div class="tarjeta-lateral">
+            <p>RANDOM FOREST</p>
+            <strong>IA + clima + aptitud territorial</strong>
+            <span>Una herramienta presentada para mejorar y progresar.</span>
+        </div>
+    </aside>
+
+    <main class="contenido">
+        <section class="hero">
+            <div class="hero-texto">
+                <h1>Predicción de riesgo productivo para papa, maíz y quinua en zonas agrícolas del Perú</h1>
+                <p>AgroIA Perú convierte datos climáticos, agrícolas y territoriales en alertas tempranas, recomendaciones automáticas y métricas de validación técnica.</p>
+                <div class="acciones-hero">
+                    <button class="boton primario" id="btnDemo">Cargar modo demo</button>
+                    <button class="boton secundario" id="btnLimpiarDemo">Limpiar demo</button>
+                    <a class="boton fantasma" href="/api/exportar_csv">Exportar Excel CSV</a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <img src="/static/img/hero-papa-cusco.jpg" alt="Productora agrícola cosechando papa en zona altoandina">
+                <div class="pulso pulso-alto">Riesgo alto</div>
+                <div class="pulso pulso-medio">Riesgo medio</div>
+                <div class="pulso pulso-bajo">Riesgo bajo</div>
+            </div>
+        </section>
+
+        <section class="metricas" id="panel">
+            <article class="metrica">
+                <span>Total evaluaciones</span>
+                <strong id="kpiTotal">0</strong>
+                <small>Demo + datos reales</small>
+            </article>
+            <article class="metrica alerta">
+                <span>Parcelas en riesgo alto</span>
+                <strong id="kpiAlto">0</strong>
+                <small id="kpiPorcentaje">0% del total</small>
+            </article>
+            <article class="metrica">
+                <span>Área monitoreada</span>
+                <strong id="kpiArea">0 ha</strong>
+                <small>Superficie registrada</small>
+            </article>
+            <article class="metrica">
+                <span>Área crítica</span>
+                <strong id="kpiAreaAlta">0 ha</strong>
+                <small>Prioridad de intervención</small>
+            </article>
+            <article class="metrica ia-metrica">
+                <span>F1-Score IA</span>
+                <strong id="kpiF1">--</strong>
+                <small>Solo registros validados</small>
+            </article>
+            <article class="metrica ia-metrica">
+                <span>Tiempo promedio IA</span>
+                <strong id="kpiTiempoIA">-- ms</strong>
+                <small>Velocidad de predicción</small>
+            </article>
+        </section>
+
+        <section class="panel blindaje-panel" id="blindaje">
+            <div class="cabecera-panel grande">
+                <div>
+                    <span class="subtitulo">Sesión VI · Blindaje productivo</span>
+                    <h2>IA en proyectos productivos e industriales</h2>
+                    <p>Esta versión tuneada amarra la demo con optimización de procesos, predicción, eficiencia operativa, automatización inteligente e indicadores. Todo liviano para que Render Free no llore.</p>
+                </div>
+            </div>
+            <div class="rejilla-blindaje">
+                <article><span>01</span><strong>Optimización de procesos</strong><p>Prioriza zonas críticas para decidir dónde mandar primero al técnico agrícola.</p></article>
+                <article><span>02</span><strong>Predicción de demanda y consumo</strong><p>Usa históricos, riesgo y campaña para proyectar necesidad de riego, atención y recursos.</p></article>
+                <article><span>03</span><strong>Eficiencia operativa</strong><p>Mide área crítica, tiempos IA, alertas y aciertos contra validación real.</p></article>
+                <article><span>04</span><strong>Automatización inteligente</strong><p>Trae clima automático por coordenadas y genera alertas por Gmail cuando el riesgo es alto.</p></article>
+                <article><span>05</span><strong>Indicadores predictivos</strong><p>Muestra KPIs, mapa, matriz de confusión, F1-Score y reporte técnico imprimible.</p></article>
+            </div>
+        </section>
+
+        <section class="panel simulador-panel" id="simulador">
+            <div class="cabecera-panel grande">
+                <div>
+                    <span class="subtitulo">Simulador operativo</span>
+                    <h2>¿Qué pasa si cambia el clima?</h2>
+                    <p>Mueve los valores y mira cómo sube o baja el riesgo sin registrar nada en la base. Es para explicar la lógica a gente que no programa.</p>
+                </div>
+            </div>
+            <div class="simulador-grid">
+                <div class="campo">
+                    <label>Temperatura mínima</label>
+                    <input type="range" id="simTemperatura" min="-5" max="22" step="0.5" value="3">
+                    <strong id="simTemperaturaTexto">3 °C</strong>
+                </div>
+                <div class="campo">
+                    <label>Lluvia acumulada</label>
+                    <input type="range" id="simLluvia" min="0" max="90" step="1" value="18">
+                    <strong id="simLluviaTexto">18 mm</strong>
+                </div>
+                <div class="campo">
+                    <label>Humedad del suelo</label>
+                    <select id="simHumedad">
+                        <option>Muy baja</option>
+                        <option selected>Baja</option>
+                        <option>Media</option>
+                        <option>Alta</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Etapa del cultivo</label>
+                    <select id="simEtapa">
+                        <option>Siembra</option>
+                        <option>Emergencia</option>
+                        <option>Crecimiento</option>
+                        <option selected>Floración</option>
+                        <option>Llenado de grano</option>
+                        <option>Maduración</option>
+                    </select>
+                </div>
+                <div class="simulador-resultado">
+                    <span id="simRiesgo">Riesgo medio</span>
+                    <strong id="simPuntaje">52/100</strong>
+                    <p id="simExplicacion">Ajusta los valores para ver la reacción del modelo.</p>
+                </div>
+                <div class="simulador-resultado impacto">
+                    <span>Impacto económico estimado</span>
+                    <strong id="simImpacto">S/ 0</strong>
+                    <p>Estimación visual para priorizar intervención; no reemplaza costeo real de campo.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="rejilla-dashboard">
+            <article class="panel grafico-card">
+                <div class="cabecera-panel">
+                    <div>
+                        <span class="subtitulo">Distribución</span>
+                        <h2>Riesgo productivo</h2>
+                    </div>
+                    <button class="boton mini" data-actualizar>Actualizar</button>
+                </div>
+                <canvas id="graficoRiesgo" width="440" height="300"></canvas>
+                <div class="leyenda" id="leyendaRiesgo"></div>
+            </article>
+
+            <article class="panel grafico-card">
+                <div class="cabecera-panel">
+                    <div>
+                        <span class="subtitulo">Cultivos</span>
+                        <h2>Evaluaciones por cultivo</h2>
+                    </div>
+                </div>
+                <canvas id="graficoCultivos" width="520" height="300"></canvas>
+            </article>
+
+            <article class="panel mapa-card">
+                <div class="cabecera-panel">
+                    <div>
+                        <span class="subtitulo">Mapa georreferenciado</span>
+                        <h2>Alertas productivas en Perú</h2>
+                    </div>
+                    <div class="controles-mapa">
+                        <button class="boton mini" id="btnMapaNormal" type="button">Normal</button>
+                        <button class="boton mini" id="btnMapaSatelital" type="button">Satelital</button>
+                    </div>
+                </div>
+                <div class="mapa-peru" id="mapaPeru"></div>
+            </article>
+
+            <article class="panel recomendaciones-card">
+                <div class="cabecera-panel">
+                    <div>
+                        <span class="subtitulo">Última alerta</span>
+                        <h2>Lectura IA</h2>
+                    </div>
+                </div>
+                <div id="ultimaAlerta" class="estado-vacio">Aún no hay evaluaciones. Carga el modo demo o registra datos reales.</div>
+            </article>
+
+            <article class="panel metricas-ia-card ancho-dashboard">
+                <div class="cabecera-panel">
+                    <div>
+                        <span class="subtitulo">Evaluación del modelo</span>
+                        <h2>Métricas de IA y matriz de confusión</h2>
+                        <p>Se calculan con registros que tengan validación técnica post-cultivo. El modo demo incluye validaciones simuladas para exposición.</p>
+                    </div>
+                </div>
+                <div class="rejilla-metricas-ia">
+                    <div class="tarjeta-metrica-ia"><span>Accuracy</span><strong id="metAccuracy">--</strong></div>
+                    <div class="tarjeta-metrica-ia"><span>Precisión</span><strong id="metPrecision">--</strong></div>
+                    <div class="tarjeta-metrica-ia"><span>Recall</span><strong id="metRecall">--</strong></div>
+                    <div class="tarjeta-metrica-ia"><span>F1-Score</span><strong id="metF1">--</strong></div>
+                    <div class="tarjeta-metrica-ia"><span>Tasa de error</span><strong id="metError">--</strong></div>
+                    <div class="tarjeta-metrica-ia"><span>Variabilidad error</span><strong id="metVarError">--</strong></div>
+                </div>
+                <div class="matriz-contenedor" id="matrizConfusion"></div>
+                <p class="nota-metrica" id="notaMetricas">Aún no hay datos suficientes para calcular métricas.</p>
+            </article>
+        </section>
+
+        <section class="panel formulario-panel" id="evaluacion">
+            <div class="cabecera-panel grande">
+                <div>
+                    <span class="subtitulo">Evaluación real</span>
+                    <h2>Registrar parcela agrícola</h2>
+                    <p>Después de cargar el modo demo, puedes agregar datos reales. La validación post-cultivo se hace luego desde el historial.</p>
+                </div>
+            </div>
+
+            <form id="formEvaluacion" class="formulario" enctype="multipart/form-data">
+                <div class="campo ancho-2">
+                    <label>Productor o institución</label>
+                    <input name="productor" required placeholder="Ej. Cooperativa Agrícola Andahuaylas">
+                </div>
+                <div class="campo">
+                    <label>Cultivo</label>
+                    <select name="cultivo" id="campoCultivo" required>
+                        <option>Papa nativa</option>
+                        <option>Maíz</option>
+                        <option>Quinua</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Departamento</label>
+                    <select name="departamento" id="campoDepartamento" required></select>
+                </div>
+                <div class="campo">
+                    <label>Provincia</label>
+                    <select name="provincia" id="campoProvincia" required></select>
+                </div>
+                <div class="campo">
+                    <label>Distrito</label>
+                    <select name="distrito" id="campoDistrito" required></select>
+                </div>
+                <div class="campo ancho-2">
+                    <label>Zona agrícola rural registrada</label>
+                    <select id="campoParcelaVerificada" name="parcela_id" required></select>
+                    <span id="notaParcela">El sistema carga coordenadas, altitud y hectáreas desde una zona rural registrada.</span>
+                </div>
+                <div class="campo">
+                    <label>Latitud</label>
+                    <input type="number" step="0.000001" name="latitud" id="campoLatitud" placeholder="Ej. -13.304700" readonly>
+                    <span>Se llena automáticamente desde la zona agrícola.</span>
+                </div>
+                <div class="campo">
+                    <label>Longitud</label>
+                    <input type="number" step="0.000001" name="longitud" id="campoLongitud" placeholder="Ej. -72.116700" readonly>
+                    <span>Se llena automáticamente desde la zona agrícola.</span>
+                </div>
+                <div class="campo">
+                    <label>Altitud</label>
+                    <input type="number" step="1" min="0" name="altitud_msnm" id="campoAltitud" placeholder="msnm" readonly>
+                    <span>Altitud del punto agrícola seleccionado.</span>
+                </div>
+                <div class="campo">
+                    <label>Etapa del cultivo</label>
+                    <select name="etapa" required>
+                        <option>Siembra</option>
+                        <option>Emergencia</option>
+                        <option>Crecimiento</option>
+                        <option>Floración</option>
+                        <option>Llenado de grano</option>
+                        <option>Maduración</option>
+                        <option>Cosecha</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Fecha de siembra</label>
+                    <input type="date" name="fecha_siembra" required>
+                </div>
+                <div class="campo">
+                    <label>Área cultivada (ha)</label>
+                    <input type="number" step="0.01" min="0.1" name="area_hectareas" id="campoArea" required placeholder="Hectáreas" readonly>
+                </div>
+                <div class="campo">
+                    <label>Temperatura mínima</label>
+                    <input type="number" step="0.1" name="temperatura_minima" id="campoTemperatura" required placeholder="°C">
+                </div>
+                <div class="campo">
+                    <label>Humedad del suelo</label>
+                    <select name="humedad_suelo" id="campoHumedad" required>
+                        <option>Muy baja</option>
+                        <option>Baja</option>
+                        <option>Media</option>
+                        <option>Alta</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Lluvia acumulada</label>
+                    <input type="number" step="0.1" min="0" name="lluvia_acumulada" id="campoLluvia" required placeholder="mm">
+                </div>
+                <div class="campo">
+                    <label>Historial de pérdidas</label>
+                    <select name="historial_perdidas" required>
+                        <option value="0">No</option>
+                        <option value="1">Sí</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Validación inicial</label>
+                    <select name="riesgo_real">
+                        <option value="">Sin validar todavía</option>
+                        <option>Alto</option>
+                        <option>Medio</option>
+                        <option>Bajo</option>
+                    </select>
+                    <span>Lo recomendable es validarlo luego desde Historial.</span>
+                </div>
+                <div class="campo archivo ancho-2">
+                    <label>Imagen de la parcela o cultivo</label>
+                    <input type="file" name="imagen" id="imagenParcela" accept="image/*">
+                    <span>Permite mostrar evidencia visual durante la exposición.</span>
+                </div>
+                <div class="vista-imagen" id="vistaImagen">
+                    <span>Vista previa</span>
+                </div>
+                <div class="campo ancho-total">
+                    <label>Observaciones</label>
+                    <textarea name="observaciones" rows="3" placeholder="Opcional. Ej. riego limitado, helada reciente, plaga observada..."></textarea>
+                </div>
+                <div class="acciones-formulario ancho-total">
+                    <button class="boton fantasma" id="btnClimaAutomatico" type="button">Traer clima automático</button>
+                    <button class="boton primario" type="submit">Analizar riesgo con IA</button>
+                    <button class="boton secundario" type="reset">Limpiar formulario</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel importar-panel" id="importacion">
+            <div class="cabecera-panel grande">
+                <div>
+                    <span class="subtitulo">Carga masiva</span>
+                    <h2>Importar datos reales desde CSV</h2>
+                    <p>Útil para continuar la explicación después del modo demo. Acepta CSV con coma o punto y coma; la exportación principal ya sale compatible con Excel.</p>
+                </div>
+            </div>
+            <form id="formImportar" class="importador">
+                <input type="file" name="archivo" accept=".csv" required>
+                <button class="boton primario" type="submit">Importar CSV</button>
+            </form>
+        </section>
+
+        <section class="panel historial-panel" id="historial">
+            <div class="cabecera-panel grande">
+                <div>
+                    <span class="subtitulo">Trazabilidad</span>
+                    <h2>Historial y validación técnica</h2>
+                    <p>Valida el riesgo real post-cultivo para que Accuracy, precisión, recall, F1-Score y matriz de confusión tengan sentido.</p>
+                </div>
+            </div>
+            <div class="filtros">
+                <input id="buscarTexto" placeholder="Buscar productor, distrito, provincia o cultivo">
+                <select id="filtroRiesgo">
+                    <option value="">Todos los riesgos</option>
+                    <option>Alto</option>
+                    <option>Medio</option>
+                    <option>Bajo</option>
+                </select>
+                <select id="filtroOrigen">
+                    <option value="">Demo + reales</option>
+                    <option value="demo">Solo demo</option>
+                    <option value="real">Solo reales</option>
+                </select>
+            </div>
+            <div class="tabla-contenedor">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Productor</th>
+                            <th>Cultivo</th>
+                            <th>Ubicación</th>
+                            <th>Clima</th>
+                            <th>Riesgo IA</th>
+                            <th>Riesgo real</th>
+                            <th>Aptitud</th>
+                            <th>Origen</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaEvaluaciones"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel metodologia-panel" id="metodologia">
+            <div class="cabecera-panel grande">
+                <div>
+                    <span class="subtitulo">Base explicativa</span>
+                    <h2>¿Cómo interpreta AgroIA Perú el riesgo?</h2>
+                    <p>Esta sección está dentro del software para defender la exposición y explicar por qué las métricas no son decorativas.</p>
+                </div>
+            </div>
+            <div class="rejilla-explicacion">
+                <article class="bloque-explicacion">
+                    <h3>Puntaje 0 a 100</h3>
+                    <p>Es un índice de riesgo agroclimático. No significa porcentaje exacto de pérdida. El sistema suma temperatura, lluvia, humedad, etapa del cultivo, historial de pérdidas y aptitud provincial.</p>
+                    <ul>
+                        <li>0 a 39: riesgo bajo.</li>
+                        <li>40 a 69: riesgo medio.</li>
+                        <li>70 a 100: riesgo alto.</li>
+                    </ul>
+                </article>
+                <article class="bloque-explicacion">
+                    <h3>Temperatura mínima</h3>
+                    <p>Mientras más baja sea la temperatura nocturna, mayor es el riesgo de helada, especialmente en emergencia, floración y llenado de grano.</p>
+                    <ul>
+                        <li>≤ 0 °C: helada severa.</li>
+                        <li>0.1 a 2 °C: helada probable.</li>
+                        <li>2.1 a 4 °C: temperatura crítica para vigilancia.</li>
+                    </ul>
+                </article>
+                <article class="bloque-explicacion">
+                    <h3>Lluvia acumulada</h3>
+                    <p>La falta de lluvia aumenta estrés hídrico. El exceso eleva riesgo de encharcamiento, pudrición radicular y enfermedades.</p>
+                    <ul>
+                        <li>&lt; 5 mm: déficit fuerte.</li>
+                        <li>5 a 12 mm: lluvia insuficiente.</li>
+                        <li>45 a 65 mm: exceso de lluvia.</li>
+                        <li>&gt; 65 mm: exceso severo.</li>
+                    </ul>
+                </article>
+                <article class="bloque-explicacion">
+                    <h3>Historial de pérdidas</h3>
+                    <p>Sí aporta a la predicción. Si una parcela o zona ya tuvo pérdidas, el sistema suma riesgo porque existe evidencia de vulnerabilidad previa.</p>
+                    <ul>
+                        <li>No: no suma penalización.</li>
+                        <li>Sí: suma 10 puntos al índice.</li>
+                    </ul>
+                </article>
+                <article class="bloque-explicacion">
+                    <h3>Aptitud provincial</h3>
+                    <p>El software cruza cultivo con provincia. Por ejemplo, San Román favorece quinua, Urubamba favorece maíz y la sierra de La Libertad favorece papa nativa. El catálogo del formulario solo lista zonas agrícolas registradas; las ciudades sin zona agrícola no aparecen como opción.</p>
+                    <ul>
+                        <li>Élite: reduce riesgo base.</li>
+                        <li>Regular: no modifica mucho.</li>
+                        <li>Malo o pésimo: aumenta riesgo y puede forzar alerta.</li>
+                    </ul>
+                </article>
+                <article class="bloque-explicacion">
+                    <h3>Métricas del modelo</h3>
+                    <p>Se calculan comparando riesgo predicho por IA contra riesgo real observado por técnico después del cultivo o del evento climático.</p>
+                    <ul>
+                        <li>Accuracy: aciertos totales.</li>
+                        <li>Precisión: qué tanto acierta cuando predice una clase.</li>
+                        <li>Recall: qué tanto detecta los casos reales.</li>
+                        <li>F1-Score: equilibrio entre precisión y recall.</li>
+                        <li>Tasa de error: fallos totales.</li>
+                        <li>Variabilidad del error: gravedad de equivocarse de bajo a alto o viceversa.</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="contacto-final" id="contacto">
+            <a class="boton primario boton-contacto" href="mailto:jeffersonantonjacinto@homail.com">Contacto</a>
+        </section>
+
+    </main>
+
+    <div class="modal" id="modalResultado">
+        <div class="modal-contenido">
+            <button class="cerrar" id="cerrarModal">×</button>
+            <div id="contenidoModal"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltipGrafico"></div>
+    <div class="notificacion" id="notificacion"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

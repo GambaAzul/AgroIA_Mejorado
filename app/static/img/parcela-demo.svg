@@ -1,0 +1,9 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="28" fill="#0A211B"/>
+  <circle cx="520" cy="90" r="44" fill="#F4B23E"/>
+  <path d="M0 250L120 110L225 250L340 90L505 265L640 150V420H0V250Z" fill="#0F7A4F"/>
+  <path d="M0 330C170 280 360 296 640 330V420H0V330Z" fill="#0B3B2E"/>
+  <path d="M65 363C218 322 378 326 590 363" stroke="#33C481" stroke-width="12" stroke-linecap="round"/>
+  <path d="M92 392C244 354 390 356 560 392" stroke="#F4B23E" stroke-width="9" stroke-linecap="round"/>
+  <text x="44" y="62" fill="#FFF8E8" font-family="Arial" font-weight="800" font-size="26">Imagen demo de parcela</text>
+</svg>

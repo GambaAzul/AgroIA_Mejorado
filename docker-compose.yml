@@ -1,0 +1,10 @@
+services:
+  agroia-peru:
+    build: .
+    container_name: agroia_peru_v6
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app/datos:/app/app/datos
+      - ./app/static/uploads:/app/app/static/uploads
+    restart: unless-stopped
