@@ -905,7 +905,7 @@ function renderizarTabla() {
                 <button class="boton mini" onclick='verDetalle(${item.id})'>Ver</button>
                 <button class="boton mini" onclick='reproducirAnalisis(${item.id})'>Árbol IA</button>
                 <button class="boton mini" onclick='abrirReporte(${item.id})'>Reporte</button>
-                ${item.riesgo === 'Alto' ? `<button class="boton mini" onclick='enviarAlertaGmail(${item.id})'>Gmail</button>` : ''}
+                <button class="boton mini" onclick='enviarAlertaCorreo(${item.id})'>Correo</button>
                 ${estado.soloLectura ? '' : `<button class="boton mini" onclick='abrirValidacion(${item.id})'>Validar</button><button class="boton mini" onclick='eliminarEvaluacion(${item.id})'>Eliminar</button>`}
             </td>
         </tr>
@@ -1220,7 +1220,7 @@ function construirTarjetaResultado(item, mostrarTitulo) {
         <div class="acciones-formulario">
             <button class="boton secundario" type="button" onclick="reproducirAnalisis(${Number(item.id) || 0})">Reproducir árbol IA</button>
             <button class="boton fantasma" type="button" onclick="abrirReporte(${Number(item.id) || 0})">Reporte técnico</button>
-            ${item.riesgo === 'Alto' ? `<button class="boton primario" type="button" onclick="enviarAlertaGmail(${Number(item.id) || 0})">Enviar Gmail</button>` : ''}
+            <button class="boton primario" type="button" onclick="enviarAlertaCorreo(${Number(item.id) || 0})">Enviar correo</button>
         </div>
     `;
 }
@@ -1308,23 +1308,19 @@ function abrirReporte(id) {
     window.open(`/api/evaluaciones/${id}/reporte_tecnico`, '_blank');
 }
 
-async function enviarAlertaGmail(id) {
+async function enviarAlertaCorreo(id) {
     const evaluacion = estado.evaluaciones.find((item) => item.id === id);
     if (!evaluacion) return;
-    if (evaluacion.riesgo !== 'Alto') {
-        mostrarNotificacion('Solo se envía Gmail automático para riesgo Alto.');
-        return;
-    }
-    const destino = prompt('Correo destino para la alerta Gmail. Si lo dejas vacío, Render usará GMAIL_DESTINO si está configurado:', '');
+    const destino = prompt(`Correo destino para la alerta de riesgo ${evaluacion.riesgo}. Si lo dejas vacío, Render usará BREVO_DESTINO si está configurado:`, '');
     const datos = new FormData();
     datos.append('destino', destino || '');
     try {
         const respuesta = await fetch(`/api/evaluaciones/${id}/alerta_gmail`, { method: 'POST', body: datos });
         const resultado = await respuesta.json();
         if (!respuesta.ok) throw new Error(resultado.detail || 'No se pudo enviar la alerta.');
-        mostrarNotificacion(resultado.mensaje || (resultado.enviado ? 'Alerta enviada.' : 'Alerta simulada.'));
+        mostrarNotificacion(resultado.mensaje || (resultado.enviado ? 'Correo enviado.' : 'Alerta simulada.'));
         if (!resultado.enviado && resultado.asunto) {
-            console.info('Alerta Gmail simulada:', resultado);
+            console.info('Alerta de correo simulada:', resultado);
         }
     } catch (error) {
         mostrarNotificacion(error.message);
@@ -1449,3 +1445,7 @@ window.addEventListener('resize', () => {
         }
     }, 140);
 });
+
+function enviarAlertaGmail(id) {
+    return enviarAlertaCorreo(id);
+}

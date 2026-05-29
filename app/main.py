@@ -5,13 +5,13 @@ import io
 import json
 import os
 import shutil
-import smtplib
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from email.message import EmailMessage
+from html import escape
 from statistics import mean, pstdev
 from typing import Any
 
@@ -38,7 +38,7 @@ ETAPAS_VALIDAS = {"Siembra", "Emergencia", "Crecimiento", "Floración", "Llenado
 HUMEDADES_VALIDAS = {"Muy baja", "Baja", "Media", "Alta"}
 INICIO_SERVIDOR = datetime.now(timezone.utc)
 
-app = FastAPI(title="AgroIA Perú Blindado", version="19.0.0")
+app = FastAPI(title="AgroIA Perú Blindado", version="23.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -668,36 +668,69 @@ def reporte_tecnico(identificador: int) -> HTMLResponse:
 
 @app.post("/api/evaluaciones/{identificador}/alerta_gmail")
 def alerta_gmail(identificador: int, destino: str = Form("")) -> dict[str, Any]:
+    """Envía la alerta por API HTTPS de Brevo.
+
+    Se mantiene la ruta /alerta_gmail para no romper el JavaScript anterior,
+    pero ya no usa Gmail SMTP. Esto evita el bloqueo de puertos SMTP en Render Free.
+    """
     evaluacion = obtener_evaluacion(identificador)
-    if evaluacion.get("riesgo") != "Alto":
-        return {"enviado": False, "mensaje": "No se envió correo porque la alerta no es de riesgo Alto."}
-
-    correo_destino = destino.strip() or os.getenv("GMAIL_DESTINO", "").strip()
-    usuario = os.getenv("GMAIL_USUARIO", "").strip()
-    clave = os.getenv("GMAIL_APP_PASSWORD", "").strip()
+    correo_destino = destino.strip() or os.getenv("BREVO_DESTINO", "").strip() or os.getenv("GMAIL_DESTINO", "").strip()
+    api_key = os.getenv("BREVO_API_KEY", "").strip()
+    remitente = os.getenv("BREVO_REMITENTE", "").strip() or os.getenv("GMAIL_USUARIO", "").strip()
+    nombre_remitente = os.getenv("BREVO_REMITENTE_NOMBRE", "AgroIA Perú").strip() or "AgroIA Perú"
     asunto, cuerpo = construir_correo_alerta(evaluacion)
+    html = construir_correo_alerta_html(evaluacion)
 
-    if not usuario or not clave or not correo_destino:
+    if not api_key or not remitente or not correo_destino:
         return {
             "enviado": False,
             "modo": "simulado",
-            "mensaje": "Alerta armada, pero no enviada: faltan GMAIL_USUARIO, GMAIL_APP_PASSWORD o correo destino en Render.",
+            "mensaje": "Alerta armada, pero no enviada: faltan BREVO_API_KEY, BREVO_REMITENTE o correo destino en Render.",
             "asunto": asunto,
             "cuerpo": cuerpo,
         }
 
-    mensaje = EmailMessage()
-    mensaje["From"] = usuario
-    mensaje["To"] = correo_destino
-    mensaje["Subject"] = asunto
-    mensaje.set_content(cuerpo)
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as servidor:
-            servidor.login(usuario, clave)
-            servidor.send_message(mensaje)
+        enviar_correo_brevo(api_key, remitente, nombre_remitente, correo_destino, asunto, cuerpo, html)
+    except urllib.error.HTTPError as error:
+        detalle = error.read().decode("utf-8", errors="ignore")
+        print(f"ERROR_BREVO_HTTP {error.code}: {detalle}")
+        raise HTTPException(status_code=502, detail="Brevo rechazó el envío. Revisa API key, remitente verificado o correo destino.") from error
     except Exception as error:
-        raise HTTPException(status_code=502, detail="No se pudo enviar Gmail. Revisa credenciales o contraseña de aplicación.") from error
-    return {"enviado": True, "mensaje": f"Alerta enviada a {correo_destino}"}
+        print(f"ERROR_BREVO_GENERAL: {error}")
+        raise HTTPException(status_code=502, detail="No se pudo enviar el correo por Brevo API. Revisa variables de entorno y conexión.") from error
+    return {"enviado": True, "mensaje": f"Alerta enviada por correo a {correo_destino}"}
+
+
+def enviar_correo_brevo(
+    api_key: str,
+    remitente: str,
+    nombre_remitente: str,
+    destino: str,
+    asunto: str,
+    cuerpo_texto: str,
+    cuerpo_html: str,
+) -> None:
+    payload = {
+        "sender": {"email": remitente, "name": nombre_remitente},
+        "to": [{"email": destino}],
+        "subject": asunto,
+        "htmlContent": cuerpo_html,
+        "textContent": cuerpo_texto,
+    }
+    datos = json.dumps(payload).encode("utf-8")
+    solicitud = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=datos,
+        method="POST",
+        headers={
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(solicitud, timeout=20) as respuesta:
+        respuesta.read()
 
 
 @app.get("/plantilla_csv")
@@ -831,7 +864,7 @@ def estimar_humedad_por_lluvia(lluvia_total: float) -> str:
 def construir_correo_alerta(evaluacion: dict[str, Any]) -> tuple[str, str]:
     asunto = f"Alerta AgroIA - Riesgo {evaluacion.get('riesgo')} en {evaluacion.get('distrito')}"
     recomendaciones = evaluacion.get("recomendaciones") or []
-    cuerpo = f"""AgroIA Perú detectó una alerta crítica.
+    cuerpo = f"""AgroIA Perú generó una alerta productiva.
 
 Cultivo: {evaluacion.get('cultivo')}
 Productor/institución: {evaluacion.get('productor')}
@@ -844,9 +877,40 @@ Causa: {evaluacion.get('causa')}
 Recomendaciones:
 {chr(10).join('- ' + str(item) for item in recomendaciones[:6])}
 
-Nota: alerta generada automáticamente por AgroIA Perú. Validar en campo antes de tomar decisiones críticas.
+Nota: alerta generada automáticamente por AgroIA Perú. Validar en campo antes de tomar decisiones productivas.
 """
     return asunto, cuerpo
+
+
+def construir_correo_alerta_html(evaluacion: dict[str, Any]) -> str:
+    recomendaciones = evaluacion.get("recomendaciones") or []
+    factores = evaluacion.get("factores") or []
+    color = {"Alto": "#dc3b38", "Medio": "#e0a52b", "Bajo": "#28b96f"}.get(str(evaluacion.get("riesgo")), "#e0a52b")
+    lista_recomendaciones = "".join(f"<li>{escape(str(item))}</li>" for item in recomendaciones[:6]) or "<li>Sin recomendaciones registradas.</li>"
+    lista_factores = "".join(f"<li>{escape(str(item))}</li>" for item in factores[:8]) or "<li>Sin factores registrados.</li>"
+    return f"""
+    <div style="font-family:Arial,sans-serif;background:#f3f7f4;padding:24px;color:#14251d;">
+      <div style="max-width:760px;margin:auto;background:#ffffff;border-radius:18px;padding:24px;border:1px solid #d9e6dd;">
+        <p style="margin:0 0 8px;color:#6b7c70;font-size:13px;letter-spacing:.08em;text-transform:uppercase;">Reporte automático AgroIA Perú</p>
+        <h1 style="margin:0 0 16px;color:#123d2a;">Alerta productiva</h1>
+        <div style="display:inline-block;background:{color};color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;margin-bottom:18px;">
+          Riesgo {escape(str(evaluacion.get('riesgo')))} · Confianza {escape(str(evaluacion.get('probabilidad')))}%
+        </div>
+        <h2 style="margin:8px 0;color:#123d2a;">{escape(str(evaluacion.get('cultivo')))} - {escape(str(evaluacion.get('distrito')))}</h2>
+        <p style="line-height:1.55;">{escape(str(evaluacion.get('causa') or 'Sin causa registrada.'))}</p>
+        <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+          <tr><td style="padding:10px;background:#eef5f0;"><b>Productor</b><br>{escape(str(evaluacion.get('productor')))}</td><td style="padding:10px;background:#eef5f0;"><b>Ubicación</b><br>{escape(str(evaluacion.get('distrito')))}, {escape(str(evaluacion.get('provincia')))}, {escape(str(evaluacion.get('departamento')))}</td></tr>
+          <tr><td style="padding:10px;background:#f8fbf9;"><b>Clima</b><br>{escape(str(evaluacion.get('temperatura_minima')))} °C · {escape(str(evaluacion.get('humedad_suelo')))} · {escape(str(evaluacion.get('lluvia_acumulada')))} mm</td><td style="padding:10px;background:#f8fbf9;"><b>Geodatos</b><br>{escape(str(evaluacion.get('latitud')))}, {escape(str(evaluacion.get('longitud')))} · {escape(str(evaluacion.get('altitud_msnm')))} msnm</td></tr>
+          <tr><td style="padding:10px;background:#eef5f0;"><b>Puntaje</b><br>{escape(str(evaluacion.get('puntaje_riesgo')))} / 100</td><td style="padding:10px;background:#eef5f0;"><b>Aptitud territorial</b><br>{escape(str(evaluacion.get('aptitud_cultivo') or 'Sin referencia'))}</td></tr>
+        </table>
+        <h3 style="color:#123d2a;">Factores detectados</h3>
+        <ul style="line-height:1.55;">{lista_factores}</ul>
+        <h3 style="color:#123d2a;">Recomendaciones</h3>
+        <ul style="line-height:1.55;">{lista_recomendaciones}</ul>
+        <p style="margin-top:22px;font-size:12px;color:#6b7c70;">Correo generado automáticamente por AgroIA Perú. Validar en campo antes de tomar decisiones productivas.</p>
+      </div>
+    </div>
+    """
 
 
 def construir_reporte_html(evaluacion: dict[str, Any], recomendaciones: list[Any], factores: list[Any]) -> str:
